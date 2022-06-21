@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:insta_clone/models/user.dart';
 import 'package:insta_clone/providers/user_provider.dart';
+import 'package:insta_clone/resources/firestore_methods.dart';
 import 'package:insta_clone/utils/color.dart';
 import 'package:insta_clone/utils/utils.dart';
 import 'package:provider/provider.dart';
@@ -16,6 +17,7 @@ class AddPostScreen extends StatefulWidget {
 
 class _AddPostScreenState extends State<AddPostScreen> {
   Uint8List? _file;
+  bool isLoading = false;
   final TextEditingController _descriptionController = TextEditingController();
 
   _selectImage(BuildContext context) {
@@ -62,6 +64,19 @@ class _AddPostScreenState extends State<AddPostScreen> {
   }
 
   @override
+  void dispose() {
+    // TODO: implement dispose
+    super.dispose();
+    _descriptionController.dispose();
+  }
+
+  void clearImage() {
+    setState(() {
+      _file = null;
+    });
+  }
+
+  @override
   Widget build(BuildContext context) {
     final User user = Provider.of<UserProvider>(context).getUser;
     return _file == null
@@ -82,12 +97,17 @@ class _AddPostScreenState extends State<AddPostScreen> {
             appBar: AppBar(
               leading: IconButton(
                 icon: Icon(Icons.arrow_back),
-                onPressed: () {},
+                onPressed: () {
+                  clearImage();
+                },
               ),
               title: Text('Post to'),
               actions: [
                 TextButton(
-                  onPressed: () {},
+                  onPressed: () => postImage(
+                      uid: user.uid,
+                      username: user.username,
+                      profImage: user.photoUrl),
                   child: Text(
                     'Post',
                     style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
@@ -96,6 +116,7 @@ class _AddPostScreenState extends State<AddPostScreen> {
               ],
             ),
             body: Column(children: [
+              isLoading ? LinearProgressIndicator() : SizedBox(),
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceAround,
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -107,7 +128,7 @@ class _AddPostScreenState extends State<AddPostScreen> {
                     width: MediaQuery.of(context).size.width * 0.45,
                     child: TextField(
                       controller: _descriptionController,
-                      decoration: InputDecoration(
+                      decoration: const InputDecoration(
                         hintText: 'Write a caption',
                         border: InputBorder.none,
                       ),
@@ -121,16 +142,48 @@ class _AddPostScreenState extends State<AddPostScreen> {
                       aspectRatio: 487 / 451,
                       child: Container(
                         decoration: BoxDecoration(
-                            image: DecorationImage(
-                                fit: BoxFit.fill,
-                                alignment: FractionalOffset.topCenter,
-                                image: MemoryImage(_file!))),
+                          image: DecorationImage(
+                            fit: BoxFit.fill,
+                            alignment: FractionalOffset.topCenter,
+                            image: MemoryImage(_file!),
+                          ),
+                        ),
                       ),
                     ),
-                  )
+                  ),
                 ],
               )
             ]),
           );
+  }
+
+  void postImage(
+      {required String uid,
+      required String username,
+      required String profImage}) async {
+    setState(() {
+      isLoading = true;
+    });
+    try {
+      String res = await FirestoreMethods().uploadPost(
+          _descriptionController.text, uid, _file!, username, profImage);
+      if (res == 'success') {
+        showSnackBar(context, 'posted!');
+        setState(() {
+          isLoading = false;
+        });
+        clearImage();
+      } else {
+        showSnackBar(context, res);
+        setState(() {
+          isLoading = false;
+        });
+      }
+    } catch (e) {
+      showSnackBar(context, e.toString());
+      setState(() {
+        isLoading = false;
+      });
+    }
   }
 }
