@@ -1,6 +1,14 @@
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:insta_clone/resources/auth_methods.dart';
+import 'package:insta_clone/responsive/mobile_screen_layout.dart';
+import 'package:insta_clone/responsive/responsive_layout_screen.dart';
+import 'package:insta_clone/responsive/web_screen_layout.dart';
 import 'package:insta_clone/utils/color.dart';
+import 'package:insta_clone/utils/utils.dart';
 import 'package:insta_clone/widgets/text_field_input.dart';
 
 class SignupScreen extends StatefulWidget {
@@ -25,6 +33,8 @@ class _SignupScreenState extends State<SignupScreen> {
   final TextEditingController _passwordController = TextEditingController();
   final TextEditingController _bioController = TextEditingController();
   final TextEditingController _usernameController = TextEditingController();
+  Uint8List? _image;
+  bool isLoading = false;
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -44,16 +54,20 @@ class _SignupScreenState extends State<SignupScreen> {
             height: 64,
           ),
           Stack(children: [
-            CircleAvatar(
-              radius: 64,
-              backgroundImage: NetworkImage(
-                  'https://images.unsplash.com/photo-1655321375577-45968768ff32?ixlib=rb-1.2.1&ixid=MnwxMjA3fDB8MHxlZGl0b3JpYWwtZmVlZHw1fHx8ZW58MHx8fHw%3D&auto=format&fit=crop&w=500&q=60'),
-            ),
+            _image != null
+                ? CircleAvatar(
+                    radius: 64,
+                    backgroundImage: MemoryImage(_image!),
+                  )
+                : CircleAvatar(
+                    radius: 64,
+                    backgroundImage: AssetImage('assets/addUserNew.png'),
+                  ),
             Positioned(
                 bottom: -10,
                 left: 80,
                 child: IconButton(
-                  onPressed: () {},
+                  onPressed: selectImage,
                   icon: Icon(Icons.add_a_photo),
                 ))
           ]),
@@ -89,16 +103,24 @@ class _SignupScreenState extends State<SignupScreen> {
               textEditingController: _bioController,
               textInputType: TextInputType.text),
           GestureDetector(
-            onTap: () {},
+            onTap: signUpUser,
             child: Container(
               padding: EdgeInsets.symmetric(vertical: 12),
               alignment: Alignment.center,
               width: double.infinity,
               decoration: ShapeDecoration(
-                  color: blueColor,
-                  shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.all(Radius.circular(4)))),
-              child: Text('Sign up'),
+                color: blueColor,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.all(Radius.circular(4)),
+                ),
+              ),
+              child: isLoading
+                  ? Center(
+                      child: CircularProgressIndicator(
+                        color: Colors.white,
+                      ),
+                    )
+                  : Text('Sign up'),
             ),
           ),
           const SizedBox(
@@ -130,5 +152,36 @@ class _SignupScreenState extends State<SignupScreen> {
         ]),
       ),
     ));
+  }
+
+  void selectImage() async {
+    Uint8List im = await pickImage(ImageSource.gallery);
+    setState(() {
+      _image = im;
+    });
+  }
+
+  signUpUser() async {
+    setState(() {
+      isLoading = true;
+    });
+    String res = await AuthMethods().signUpUser(
+        username: _usernameController.text,
+        password: _passwordController.text,
+        email: _emailController.text,
+        bio: _bioController.text,
+        file: _image!);
+    setState(() {
+      isLoading = false;
+    });
+    if (res != 'success') {
+      showSnackBar(context, res);
+    } else if (res == 'sucess') {
+      Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) {
+        return ResponsiveLayout(
+            mobileScreenLayout: MobileScreenLayout(),
+            webScreenLayout: WebScreenLayout());
+      }));
+    }
   }
 }
