@@ -1,7 +1,11 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:insta_clone/models/user.dart';
 import 'package:insta_clone/providers/user_provider.dart';
+import 'package:insta_clone/resources/firestore_methods.dart';
+import 'package:insta_clone/screens/comments_screen.dart';
 import 'package:insta_clone/utils/color.dart';
+import 'package:insta_clone/utils/utils.dart';
 import 'package:insta_clone/widgets/like_animation.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
@@ -16,7 +20,15 @@ class PostCard extends StatefulWidget {
 
 class _PostCardState extends State<PostCard> {
   bool isLikeAnimating = false;
+  int cmmntLength = 0;
+  @override
+  void initState() {
+    // TODO: implement initState
+    super.initState();
+    getComments();
+  }
 
+  @override
   @override
   Widget build(BuildContext context) {
     User user = Provider.of<UserProvider>(context).getUser;
@@ -63,7 +75,11 @@ class _PostCardState extends State<PostCard> {
                             ]
                                 .map(
                                   (e) => InkWell(
-                                    onTap: (() {}),
+                                    onTap: (() async {
+                                      FirestoreMethods()
+                                          .deletePost(widget.snap['postId']);
+                                      Navigator.pop(context);
+                                    }),
                                     child: Container(
                                       padding: EdgeInsets.symmetric(
                                           vertical: 12, horizontal: 16),
@@ -81,7 +97,11 @@ class _PostCardState extends State<PostCard> {
           //Image Section
         ),
         GestureDetector(
-          onDoubleTap: () {
+          onDoubleTap: () async {
+            await FirestoreMethods().likePost(
+                postId: widget.snap['postId'],
+                uid: user.uid,
+                likes: widget.snap['likes']);
             setState(() {
               isLikeAnimating = true;
             });
@@ -121,15 +141,28 @@ class _PostCardState extends State<PostCard> {
               isAnimating: widget.snap['likes'].contains(user.uid),
               smallLike: true,
               child: IconButton(
-                onPressed: () {},
-                icon: Icon(
-                  Icons.favorite,
-                  color: Colors.red,
-                ),
+                onPressed: () async {
+                  await FirestoreMethods().likePost(
+                      postId: widget.snap['postId'],
+                      uid: user.uid,
+                      likes: widget.snap['likes']);
+                },
+                icon: widget.snap['likes'].contains(user.uid)
+                    ? Icon(
+                        Icons.favorite,
+                        color: Colors.red,
+                      )
+                    : Icon(Icons.favorite_border),
               ),
             ),
             IconButton(
-              onPressed: () {},
+              onPressed: () {
+                Navigator.push(context, MaterialPageRoute(builder: (context) {
+                  return CommentsScreen(
+                    snap: widget.snap,
+                  );
+                }));
+              },
               icon: Icon(Icons.comment_outlined),
             ),
             IconButton(
@@ -171,7 +204,7 @@ class _PostCardState extends State<PostCard> {
                 child: Container(
                   padding: EdgeInsets.symmetric(vertical: 4),
                   child: Text(
-                    'View all 200 comments',
+                    'View all ${cmmntLength} comments',
                     style: TextStyle(fontSize: 16, color: secondaryColor),
                   ),
                 ),
@@ -189,5 +222,19 @@ class _PostCardState extends State<PostCard> {
         )
       ]),
     );
+  }
+
+  void getComments() async {
+    try {
+      QuerySnapshot snap = await FirebaseFirestore.instance
+          .collection('posts')
+          .doc(widget.snap['postId'])
+          .collection('comments')
+          .get();
+      cmmntLength = snap.docs.length;
+    } catch (e) {
+      showSnackBar(context, e.toString());
+    }
+    setState(() {});
   }
 }
