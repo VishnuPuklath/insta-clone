@@ -148,7 +148,7 @@ class _PostCardState extends State<PostCard> {
                       likes: widget.snap['likes']);
                 },
                 icon: widget.snap['likes'].contains(user.uid)
-                    ? Icon(
+                    ? const Icon(
                         Icons.favorite,
                         color: Colors.red,
                       )

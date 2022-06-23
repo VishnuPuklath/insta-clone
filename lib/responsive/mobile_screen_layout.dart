@@ -26,7 +26,9 @@ class _MobileScreenLayoutState extends State<MobileScreenLayout> {
     SearchScreen(),
     AddPostScreen(),
     FavouriteScreen(),
-    ProfileScreen()
+    ProfileScreen(
+      uid: FirebaseAuth.instance.currentUser!.uid,
+    )
   ];
   @override
   void initState() {
